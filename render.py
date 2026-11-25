@@ -284,6 +284,16 @@ def slides_html(c, acc):
     return out
 
 
+DM_CTA = ("💬 댓글 아무거나 남기면 오늘 내용 정리본(복사해서 바로 쓰는 버전)을 DM으로 보내드려요!\n"
+          "※ 팔로워분들께만 보내드려요")
+
+
+def with_dm_cta(text):
+    """캡션 첫 줄(정리본 주소 계산에 쓰임)은 그대로 두고, 바로 아래에 댓글→DM 안내를 넣음 (접힘 전에 보이게)"""
+    lines = text.strip().split("\n")
+    return lines[0] + "\n\n" + DM_CTA + ("\n\n" + "\n".join(lines[1:]).strip() if len(lines) > 1 else "")
+
+
 def render(json_path, browser):
     json_path = Path(json_path)
     key = json_path.parent.name
@@ -305,8 +315,7 @@ def render(json_path, browser):
         pg.screenshot(path=str(f), type="jpeg", quality=92)
         files.append(f)
     pg.close()
-    dm_line = "💬 댓글 아무거나 남기면 복사해서 바로 쓰는 정리본을 DM으로 보내드려요 (팔로워 전용)"
-    caption = c["caption"] + "\n\n" + dm_line + "\n\n" + " ".join("#" + h.lstrip("#") for h in c.get("hashtags", []))
+    caption = with_dm_cta(c["caption"]) + "\n\n" + " ".join("#" + h.lstrip("#") for h in c.get("hashtags", []))
     pages.build(c, acc)  # 정리본 페이지 p/<slug>/index.html (DM으로 보낼 링크)
     (out_dir / "caption.txt").write_text(caption, encoding="utf-8")
     print(f"렌더: {out_dir} ({len(files)}장)")
