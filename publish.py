@@ -115,6 +115,7 @@ def publish(folder, dry=False):
     media_id = post(f"{uid}/media_publish", tok, creation_id=car)["id"]
     log_post(key, folder.name, media_id, "carousel")
     print(f"게시 완료: {key} media_id={media_id}")
+    first_comment(media_id, tok)
     if reel_url:
         try:
             publish_reel(uid, tok, key, folder.name, reel_url, caption)
@@ -130,6 +131,25 @@ def publish_reel(uid, tok, key, name, video_url, caption):
     media_id = post(f"{uid}/media_publish", tok, creation_id=rid)["id"]
     log_post(key, name, media_id, "reel")
     print(f"릴스 게시 완료: {key} media_id={media_id}")
+    first_comment(media_id, tok)
+
+
+FIRST_COMMENTS = [
+    "📩 댓글 아무거나 남겨주시면 오늘 내용 정리본 DM으로 보내드려요!",
+    "📩 복사해서 바로 쓰는 정리본 필요하시면 댓글 아무거나 남겨주세요! DM으로 보내드려요",
+    "📩 이모지 하나만 남겨도 정리본 DM으로 보내드려요 🙌",
+]
+
+
+def first_comment(media_id, tok):
+    """게시 직후 내 계정으로 첫 댓글 (댓글 유도). 실패해도 게시에는 영향 없음"""
+    import random
+    try:
+        r = requests.post(f"{API}/{media_id}/comments",
+                          data={"message": random.choice(FIRST_COMMENTS), "access_token": tok}, timeout=30)
+        print("첫 댓글:", r.status_code, r.text[:200])
+    except Exception as e:
+        print("첫 댓글 실패:", e)
 
 
 def log_post(key, name, media_id, kind):
