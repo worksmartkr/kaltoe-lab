@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
-API = "https://graph.instagram.com/v23.0"
+API = os.getenv("IG_API_BASE", "https://graph.facebook.com/v25.0")  # 통합 로그인(Facebook 로그인) 토큰
 METRICS = "reach,views,saved,shares,likes,comments,follows"
 
 
