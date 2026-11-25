@@ -15,7 +15,10 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
-API = os.getenv("IG_API_BASE", "https://graph.facebook.com/v25.0")  # 통합 로그인(Facebook 로그인) 토큰
+_TOK = os.getenv("IG_WORK_TOKEN", "")
+# IGAA… 로 시작하면 인스타 로그인 토큰 → graph.instagram.com, 아니면 페이스북 로그인 토큰 → graph.facebook.com
+API = os.getenv("IG_API_BASE") or ("https://graph.instagram.com/v25.0" if _TOK.startswith("IG")
+                                   else "https://graph.facebook.com/v25.0")
 METRICS = "reach,views,saved,shares,likes,comments,follows"
 
 
