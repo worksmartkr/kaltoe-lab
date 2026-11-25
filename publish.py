@@ -47,6 +47,11 @@ def host_images(folder: Path, key: str):
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-m", f"add {rel.as_posix()}"], check=False)
     subprocess.run(["git", "-C", str(repo), "push"], check=True)
+    gh_tok, gh_repo = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPOSITORY")
+    if gh_tok and gh_repo:  # GitHub Pages 재배포 요청 (봇 push는 자동 배포가 안 될 수 있음)
+        r = requests.post(f"https://api.github.com/repos/{gh_repo}/pages/builds",
+                          headers={"Authorization": f"Bearer {gh_tok}", "Accept": "application/vnd.github+json"}, timeout=30)
+        print("Pages 빌드 요청:", r.status_code)
     urls = [f"{base}/{rel.as_posix()}/{f.name}" for f in imgs]
     if (folder / "reel.mp4").exists():
         urls.append(f"{base}/{rel.as_posix()}/reel.mp4")
@@ -73,6 +78,18 @@ def wait_ready(cid, tok, tries=30):
         if r.get("status_code") == "ERROR":
             sys.exit(f"컨테이너 오류: {r}")
         time.sleep(3)
+
+
+def publish_reel_only(folder):
+    """이미 캐러셀을 올린 게시물의 릴스만 따로 올릴 때"""
+    folder = Path(folder)
+    key = folder.parent.name
+    caption = (folder / "caption.txt").read_text(encoding="utf-8")
+    uid, tok = creds(key)
+    urls = host_images(folder, key)
+    if not urls[-1].endswith(".mp4"):
+        sys.exit("reel.mp4 없음 — 먼저 python reel.py 실행")
+    publish_reel(uid, tok, key, folder.name, urls[-1], caption)
 
 
 def publish(folder, dry=False):
@@ -125,5 +142,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("folder")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--reel-only", action="store_true")
     a = ap.parse_args()
-    publish(a.folder, a.dry_run)
+    publish_reel_only(a.folder) if a.reel_only else publish(a.folder, a.dry_run)

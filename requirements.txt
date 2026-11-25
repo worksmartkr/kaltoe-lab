@@ -3,3 +3,4 @@ playwright
 pyyaml
 requests
 python-dotenv
+numpy

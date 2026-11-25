@@ -4,12 +4,14 @@
 
 - 슬라이드를 세로 화면 가운데에 놓고 위아래는 배경색으로 채움
 - 표지 2.5초, 나머지 3.5초씩 (읽을 시간)
-- 무음 오디오 트랙 포함 (인스타 업로드 호환용)
+- 배경음악: music.py 로 직접 합성한 로파이 트랙 (저작권 문제 없음, 게시물마다 조금씩 다름)
 """
-import subprocess, sys
+import subprocess, sys, zlib
 from pathlib import Path
 
 import yaml
+
+import music
 
 ROOT = Path(__file__).parent
 COVER_SEC, SLIDE_SEC = 2.5, 3.5
@@ -27,16 +29,21 @@ def make_reel(folder):
     lines.append(f"file '{imgs[-1].resolve().as_posix()}'")  # concat 마지막 프레임 유지용
     lst.write_text("\n".join(lines) + "\n", encoding="utf-8")
     out = folder / "reel.mp4"
+    total = COVER_SEC + SLIDE_SEC * (len(imgs) - 1)
+    bgm = folder / "bgm.wav"
+    music.save(bgm, total + 1, seed=zlib.crc32(folder.name.encode()) % 1000)
     vf = (f"scale=1080:1350,pad=1080:1920:0:285:color={bg.lstrip('#')},"
           "format=yuv420p,fps=30")
+    af = f"lowpass=f=5000,volume=0.7,afade=t=out:st={total - 1.5:.2f}:d=1.5"
     subprocess.run([
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "concat", "-safe", "0", "-i", str(lst),
-        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-        "-vf", vf, "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-        "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart",
+        "-i", str(bgm),
+        "-vf", vf, "-af", af, "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+        "-c:a", "aac", "-b:a", "128k", "-t", f"{total:.2f}", "-movflags", "+faststart",
         str(out)], check=True)
     lst.unlink()
+    bgm.unlink()
     print("릴스:", out)
     return out
 
