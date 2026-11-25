@@ -1,4 +1,4 @@
-"""하루 1회 실행: 계정마다 캐러셀 1개 → 렌더 → (옵션) 게시.
+"""1회 실행: 계정마다 캐러셀 1개 → 렌더 + 릴스 영상 → (옵션) 캐러셀·릴스 게시.
 
 문안 출처
   - queue/<계정>/*.json 이 있으면 파일명 순서대로 하나 꺼내 씀 (API 비용 0)
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-import generate, render, publish
+import generate, render, publish, reel
 
 ROOT = Path(__file__).parent
 
@@ -39,6 +39,7 @@ with sync_playwright() as p:
         try:
             j = next_content(k)
             out = render.render(j, b)
+            reel.make_reel(out)
             if a.publish:
                 publish.publish(out)
                 if j.parent.parent.name == "queue":  # 게시 성공 후에만 큐에서 제거

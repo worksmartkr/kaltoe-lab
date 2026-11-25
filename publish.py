@@ -39,12 +39,14 @@ def host_images(folder: Path, key: str):
     dst = repo / rel
     dst.mkdir(parents=True, exist_ok=True)
     imgs = sorted(folder.glob("*.jpg"))
-    for f in imgs:
+    for f in imgs + list(folder.glob("reel.mp4")):
         shutil.copy2(f, dst / f.name)
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-m", f"add {rel.as_posix()}"], check=False)
     subprocess.run(["git", "-C", str(repo), "push"], check=True)
     urls = [f"{base}/{rel.as_posix()}/{f.name}" for f in imgs]
+    if (folder / "reel.mp4").exists():
+        urls.append(f"{base}/{rel.as_posix()}/reel.mp4")
     for u in urls:  # raw URL 반영 대기
         for _ in range(20):
             if requests.head(u, timeout=10).status_code == 200:
@@ -60,8 +62,8 @@ def post(path, tok, **data):
     return r.json()
 
 
-def wait_ready(cid, tok):
-    for _ in range(30):
+def wait_ready(cid, tok, tries=30):
+    for _ in range(tries):
         r = requests.get(f"{API}/{cid}", params={"fields": "status_code", "access_token": tok}, timeout=30).json()
         if r.get("status_code") == "FINISHED":
             return
@@ -82,6 +84,7 @@ def publish(folder, dry=False):
         return
     uid, tok = creds(key)
     urls = host_images(folder, key)
+    reel_url = urls.pop() if urls[-1].endswith(".mp4") else None
     children = []
     for u in urls:
         c = post(f"{uid}/media", tok, image_url=u, is_carousel_item="true")["id"]
@@ -90,11 +93,29 @@ def publish(folder, dry=False):
     car = post(f"{uid}/media", tok, media_type="CAROUSEL", children=",".join(children), caption=caption)["id"]
     wait_ready(car, tok)
     media_id = post(f"{uid}/media_publish", tok, creation_id=car)["id"]
-    log = ROOT / "posted.jsonl"
-    with log.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"account": key, "folder": folder.name, "media_id": media_id,
-                            "posted_at": time.strftime("%Y-%m-%d %H:%M")}, ensure_ascii=False) + "\n")
+    log_post(key, folder.name, media_id, "carousel")
     print(f"게시 완료: {key} media_id={media_id}")
+    if reel_url:
+        try:
+            publish_reel(uid, tok, key, folder.name, reel_url, caption)
+        except SystemExit as e:  # 릴스 실패해도 캐러셀은 이미 올라감
+            print(f"릴스 실패(캐러셀은 게시됨): {e}")
+
+
+def publish_reel(uid, tok, key, name, video_url, caption):
+    # share_to_feed=false → 프로필 그리드엔 캐러셀만, 릴스 탭·추천에 릴스 노출
+    rid = post(f"{uid}/media", tok, media_type="REELS", video_url=video_url,
+               caption=caption, share_to_feed="false")["id"]
+    wait_ready(rid, tok, tries=100)  # 영상 처리 최대 약 5분
+    media_id = post(f"{uid}/media_publish", tok, creation_id=rid)["id"]
+    log_post(key, name, media_id, "reel")
+    print(f"릴스 게시 완료: {key} media_id={media_id}")
+
+
+def log_post(key, name, media_id, kind):
+    with (ROOT / "posted.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"account": key, "folder": name, "media_id": media_id, "type": kind,
+                            "posted_at": time.strftime("%Y-%m-%d %H:%M")}, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":
