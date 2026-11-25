@@ -60,3 +60,8 @@ python metrics.py
 4. 매일 19:17(KST)에 자동 생성+게시. 처음엔 schedule을 꺼두고 수동 실행 추천
 - 인스타 장기 토큰은 60일마다 갱신해서 Secret 업데이트 필요
 - 공개 저장소라 .env는 절대 올리지 말 것 (.gitignore 포함됨)
+
+## API 비용 없이 쓰기 (큐 방식)
+- `queue/work/*.json` 에 문안을 미리 넣어두면 파일명 순서대로 하루 1개씩 렌더·게시
+- 게시 성공한 문안은 `content/work/` 로 이동
+- 큐가 비면 Claude 채팅에서 새 문안을 받아 `queue/work/` 에 추가 (ANTHROPIC_API_KEY 가 있으면 자동 생성으로 대체)
