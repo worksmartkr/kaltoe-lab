@@ -47,8 +47,8 @@ def host_images(folder: Path, key: str):
     urls = [f"{base}/{rel.as_posix()}/{f.name}" for f in imgs]
     if (folder / "reel.mp4").exists():
         urls.append(f"{base}/{rel.as_posix()}/reel.mp4")
-    for u in urls:  # raw URL 반영 대기
-        for _ in range(20):
+    for u in urls:  # GitHub Pages 배포 대기 (보통 1~2분)
+        for _ in range(100):
             if requests.head(u, timeout=10).status_code == 200:
                 break
             time.sleep(3)
