@@ -13,7 +13,7 @@ const FALLBACK = { title: "업무용 AI 프롬프트 30", url: `${SITE}/prompts/
 const ASK = (o) =>
   "안녕하세요! 칼퇴연구소예요 🙌\n" +
   `'${o.title}' 정리본은 팔로워분들께만 보내드려요.\n\n` +
-  "① @worksmart.kr 팔로우\n" +
+  "① @worksmart.kr 팔로우 (이미 팔로우 중이면 건너뛰기)\n" +
   "② 아래 '팔로우 했어요' 버튼 누르기\n\n" +
   "확인되면 바로 링크 보내드릴게요!";
 // 팔로우 확인되면 보내는 링크
@@ -31,6 +31,8 @@ const R_FOLLOW_DM = [
   "팔로우 해주셔야 자료를 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 DM의 '팔로우 했어요' 버튼을 눌러주세요!",
   "팔로워분들께만 보내드려요! 팔로우 후 DM에서 '팔로우 했어요' 눌러주시면 바로 보내드릴게요 🙌",
 ];
+// 팔로우 여부를 아직 확인할 수 없는 경우 (처음 연락하는 사람은 인스타가 확인을 막음)
+const R_CHECK_DM = ["DM 보내드렸어요! 📩 DM에서 '팔로우 했어요' 누르면 링크 바로 보내드려요", "DM 확인해주세요 🙌 버튼 하나만 누르면 링크 보내드려요!"];
 const R_FOLLOW = ["팔로우 해주셔야 DM으로 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 댓글 다시 달아주세요!"];
 const BTN = (mediaId) => [{ content_type: "text", title: "팔로우 했어요 ✅", payload: `FOLLOW_CHECK|${mediaId || ""}` }];
 const CHECK_WORDS = /팔로우|했어|했습니다|완료|ok|확인|프롬프트/i;
@@ -126,7 +128,7 @@ async function handleComment(env, v) {
     });
   }
   if (dm.ok) await rememberOffer(v.from.id, mediaId);
-  await graph(env, `${v.id}/replies`, { message: pick(dm.ok ? R_FOLLOW_DM : R_FOLLOW) });
+  await graph(env, `${v.id}/replies`, { message: pick(!dm.ok ? R_FOLLOW : follows === false ? R_FOLLOW_DM : R_CHECK_DM) });
 }
 
 // 버튼 대신 글로 답장한 경우를 위해 마지막 요청 게시물 기억
