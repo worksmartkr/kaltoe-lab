@@ -8,6 +8,7 @@ import html, json, sys
 from pathlib import Path
 
 import yaml
+import pages
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).parent
@@ -245,7 +246,7 @@ def mag_slides(c, acc):
 <div class="pg">{i + 1}/{n}</div><div class="mark">{brand}</div>"""))
     kw = c.get("dm_keyword")
     kw_html = (f'<div class="kw">댓글에 “{esc(kw)}” 남기기</div><div class="s">{esc(c.get("dm_offer", "자료를 DM으로 보내드려요"))}</div>'
-               if kw else f'<div class="s">{esc(acc["cta"])}</div>')
+               if kw else f'<div class="kw">댓글 아무거나 남기기 💬</div><div class="s">{esc(c.get("dm_offer", "복사해서 바로 쓰는 정리본을 DM으로 보내드려요"))}</div>')
     cta_t = esc(c.get("cta_title", "저장해두고\n필요할 때 꺼내 쓰세요"))
     out.append(mag_page(t, acc, f"""<div class="cta"><div class="t">{cta_t}</div>
 {kw_html}<div class="h">{esc(acc['handle'])}</div></div>"""))
@@ -304,7 +305,9 @@ def render(json_path, browser):
         pg.screenshot(path=str(f), type="jpeg", quality=92)
         files.append(f)
     pg.close()
-    caption = c["caption"] + "\n\n" + " ".join("#" + h.lstrip("#") for h in c.get("hashtags", []))
+    dm_line = "💬 댓글 아무거나 남기면 복사해서 바로 쓰는 정리본을 DM으로 보내드려요 (팔로워 전용)"
+    caption = c["caption"] + "\n\n" + dm_line + "\n\n" + " ".join("#" + h.lstrip("#") for h in c.get("hashtags", []))
+    pages.build(c, acc)  # 정리본 페이지 p/<slug>/index.html (DM으로 보낼 링크)
     (out_dir / "caption.txt").write_text(caption, encoding="utf-8")
     print(f"렌더: {out_dir} ({len(files)}장)")
     return out_dir
