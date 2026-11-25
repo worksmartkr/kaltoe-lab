@@ -21,7 +21,7 @@ jobs:
       - run: |
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
-          sudo apt-get install -y fonts-noto-cjk
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji ffmpeg
       - name: generate + render (+ publish)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
