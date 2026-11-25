@@ -34,6 +34,12 @@ for cand in dict.fromkeys(cands):
     print(f"인스타 {cand} →", r1.status_code, r1.json())
     print(f"  게시 한도 →", r2.status_code, r2.json())
     ok = ok or (r1.ok and r2.ok)
+    if r1.ok:  # 댓글→DM 웹훅: 인스타 계정을 앱에 구독
+        s = requests.post(f"{host}/{cand}/subscribed_apps",
+                          params={"subscribed_fields": "comments,messages", "access_token": tok}, timeout=30)
+        print("  인스타 웹훅 구독 →", s.status_code, s.json())
+        g = get(f"{cand}/subscribed_apps")
+        print("  현재 구독 →", g.status_code, g.json())
 if not ok:
     sys.exit(1)
 print("✅ 연결 OK")
