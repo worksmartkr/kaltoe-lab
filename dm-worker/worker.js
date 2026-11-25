@@ -7,47 +7,34 @@
 //   IG_USER_ID    : 17841438430452513
 // 선택: API_BASE (기본 https://graph.facebook.com/v25.0)
 
-const RULES = [
-  {
-    keywords: ["프롬프트", "prompt"],
-    // 1단계: 댓글 단 사람에게 보내는 첫 DM (팔로우 요청 + 확인 버튼)
-    ask:
-      "안녕하세요! 칼퇴연구소예요 🙌\n" +
-      "'업무용 AI 프롬프트 30'은 팔로워분들께만 보내드려요.\n\n" +
-      "① @worksmart.kr 팔로우\n" +
-      "② 아래 '팔로우 했어요' 버튼 누르기\n\n" +
-      "확인되면 바로 링크 보내드릴게요!",
-    // 2단계: 팔로우 확인되면 보내는 자료
-    dm:
-      "팔로우 확인됐어요, 감사합니다 🙏\n" +
-      "요청하신 '업무용 AI 프롬프트 30'이에요 👇\n" +
-      "https://worksmartkr.github.io/kaltoe-lab/prompts/\n\n" +
-      "저장해두고 필요할 때 꺼내 쓰세요. 매일 저녁 7시에 칼퇴 팁 올라가요!",
-    // 링크 DM 성공 시 대댓글
-    replies: ["DM으로 보내드렸어요! 📩", "DM으로 보내드렸어요! 확인해주세요 🙌", "DM으로 보내드렸어요! 칼퇴하세요 🏃"],
-    // 미팔로워 대댓글 (팔로우 요청 DM이 나간 경우)
-    followRepliesDm: [
-      "팔로우 해주셔야 자료를 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 DM의 '팔로우 했어요' 버튼을 눌러주세요!",
-      "팔로워분들께만 보내드려요! 팔로우 후 DM에서 '팔로우 했어요' 눌러주시면 바로 보내드릴게요 🙌",
-    ],
-    // 미팔로워 대댓글 (DM도 못 보낸 경우)
-    followReplies: [
-      "팔로우 해주셔야 DM으로 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 '프롬프트' 댓글 다시 달아주세요!",
-    ],
-  },
-];
+const SITE = "https://worksmartkr.github.io/kaltoe-lab";
+const FALLBACK = { title: "업무용 AI 프롬프트 30", url: `${SITE}/prompts/` };
+// 댓글 단 사람에게 보내는 첫 DM (팔로우 요청 + 확인 버튼)
+const ASK = (o) =>
+  "안녕하세요! 칼퇴연구소예요 🙌\n" +
+  `'${o.title}' 정리본은 팔로워분들께만 보내드려요.\n\n` +
+  "① @worksmart.kr 팔로우\n" +
+  "② 아래 '팔로우 했어요' 버튼 누르기\n\n" +
+  "확인되면 바로 링크 보내드릴게요!";
+// 팔로우 확인되면 보내는 링크
+const LINK = (o) =>
+  "감사합니다 🙏\n" +
+  `요청하신 '${o.title}' 정리본이에요 👇\n` +
+  `${o.url}\n\n` +
+  "복사해서 바로 쓰세요. 매일 저녁 7시에 칼퇴 팁 올라가요!";
 const NOT_YET =
   "아직 팔로우가 확인되지 않아요 😢\n" +
   "@worksmart.kr 팔로우 후 '팔로우 했어요'를 다시 눌러주세요!";
-const FOLLOW_BTN = [{ content_type: "text", title: "팔로우 했어요 ✅", payload: "FOLLOW_CHECK" }];
+// 대댓글
+const R_SENT = ["DM으로 링크 보내드렸어요! 📩", "DM으로 링크 보내드렸어요! 확인해주세요 🙌", "DM으로 링크 보내드렸어요! 칼퇴하세요 🏃"];
+const R_FOLLOW_DM = [
+  "팔로우 해주셔야 자료를 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 DM의 '팔로우 했어요' 버튼을 눌러주세요!",
+  "팔로워분들께만 보내드려요! 팔로우 후 DM에서 '팔로우 했어요' 눌러주시면 바로 보내드릴게요 🙌",
+];
+const R_FOLLOW = ["팔로우 해주셔야 DM으로 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 댓글 다시 달아주세요!"];
+const BTN = (mediaId) => [{ content_type: "text", title: "팔로우 했어요 ✅", payload: `FOLLOW_CHECK|${mediaId || ""}` }];
 const CHECK_WORDS = /팔로우|했어|했습니다|완료|ok|확인|프롬프트/i;
-
-const norm = (s) => (s || "").toLowerCase().replace(/\s+/g, "");
-
-function matchRule(text) {
-  const t = norm(text);
-  return RULES.find((r) => r.keywords.some((k) => t.includes(norm(k))));
-}
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 async function verifySignature(req, body, secret) {
   const sig = req.headers.get("x-hub-signature-256") || "";
@@ -85,52 +72,90 @@ async function isFollower(env, igsid) {
   return r.ok && typeof r.j.is_user_follow_business === "boolean" ? r.j.is_user_follow_business : null;
 }
 
+// 캡션 첫 줄 SHA-1 앞 10자리 = 정리본 페이지 주소 (pages.py 와 같은 규칙)
+async function slugFor(caption) {
+  const first = ((caption || "").split("\n").map((l) => l.trim()).find((l) => l) || "").normalize("NFC");
+  const h = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(first));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 10);
+}
+
+// 게시물 → 보낼 정리본 {title, url}. 페이지가 없으면 프롬프트 30 페이지
+async function offerFor(env, mediaId) {
+  if (!mediaId) return FALLBACK;
+  const m = await graphGet(env, mediaId, "caption");
+  if (!m.ok || !m.j.caption) return FALLBACK;
+  const url = `${SITE}/p/${await slugFor(m.j.caption)}/`;
+  const r = await fetch(url, { cf: { cacheTtl: 60 } });
+  if (!r.ok) { console.log("정리본 없음 →", url); return FALLBACK; }
+  const t = ((await r.text()).match(/<title>([^<|]+)/) || [])[1];
+  return { title: (t || "이 게시물").trim(), url };
+}
+
+// 같은 사람이 같은 게시물에 여러 번 댓글 달면 첫 댓글에만 반응 (Cache API, 최선 노력)
+async function seenBefore(userId, mediaId) {
+  const key = new Request(`https://kaltoe-dm.internal/seen/${userId}/${mediaId}`);
+  if (await caches.default.match(key)) return true;
+  await caches.default.put(key, new Response("1", { headers: { "cache-control": "max-age=2592000" } }));
+  return false;
+}
+
 async function handleComment(env, v) {
   console.log("COMMENT", JSON.stringify(v));
-  if (!v || !v.id || !v.text) return console.log("skip: 내용 없음");
-  if (v.from && v.from.id === env.IG_USER_ID) return console.log("skip: 내 댓글");
+  if (!v || !v.id || !v.from) return console.log("skip: 내용 없음");
+  if (v.from.id === env.IG_USER_ID) return console.log("skip: 내 댓글");
   if (v.parent_id) return console.log("skip: 대댓글");
-  const rule = matchRule(v.text);
-  if (!rule) return console.log("skip: 키워드 아님");
-  const follows = v.from ? await isFollower(env, v.from.id) : null;
-  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const mediaId = v.media && v.media.id;
+  if (await seenBefore(v.from.id, mediaId)) return console.log("skip: 이미 보낸 사람");
+  const offer = await offerFor(env, mediaId);
+  const follows = await isFollower(env, v.from.id);
   if (follows === true) {
-    // 팔로워: 바로 링크 DM → 성공하면 "DM 보내드렸어요" 대댓글
     const dm = await graph(env, `${env.IG_USER_ID}/messages`, {
-      recipient: { comment_id: v.id }, message: { text: rule.dm },
+      recipient: { comment_id: v.id }, message: { text: LINK(offer) },
     });
-    if (dm.ok) await graph(env, `${v.id}/replies`, { message: pick(rule.replies) });
+    if (dm.ok) await graph(env, `${v.id}/replies`, { message: pick(R_SENT) });
     return;
   }
   // 미팔로워(false) 또는 확인 불가(null): 팔로우 요청 DM(버튼) + 팔로우 요청 대댓글
   let dm = await graph(env, `${env.IG_USER_ID}/messages`, {
-    recipient: { comment_id: v.id }, message: { text: rule.ask, quick_replies: FOLLOW_BTN },
+    recipient: { comment_id: v.id }, message: { text: ASK(offer), quick_replies: BTN(mediaId) },
   });
   if (!dm.ok) {
     dm = await graph(env, `${env.IG_USER_ID}/messages`, {
       recipient: { comment_id: v.id },
-      message: { text: rule.ask.replace("아래 '팔로우 했어요' 버튼 누르기", "이 메시지에 '팔로우 했어요'라고 답장") },
+      message: { text: ASK(offer).replace("아래 '팔로우 했어요' 버튼 누르기", "이 메시지에 '팔로우 했어요'라고 답장") },
     });
   }
-  await graph(env, `${v.id}/replies`, { message: pick(dm.ok ? rule.followRepliesDm : rule.followReplies) });
+  if (dm.ok) await rememberOffer(v.from.id, mediaId);
+  await graph(env, `${v.id}/replies`, { message: pick(dm.ok ? R_FOLLOW_DM : R_FOLLOW) });
 }
 
-// DM으로 '팔로우 했어요' 버튼/답장이 오면 팔로우 확인 후 자료 전송
+// 버튼 대신 글로 답장한 경우를 위해 마지막 요청 게시물 기억
+async function rememberOffer(userId, mediaId) {
+  await caches.default.put(new Request(`https://kaltoe-dm.internal/last/${userId}`),
+    new Response(mediaId || "", { headers: { "cache-control": "max-age=604800" } }));
+}
+async function lastOffer(userId) {
+  const r = await caches.default.match(new Request(`https://kaltoe-dm.internal/last/${userId}`));
+  return r ? await r.text() : "";
+}
+
+// DM으로 '팔로우 했어요' 버튼/답장이 오면 팔로우 확인 후 링크 전송
 async function handleMessage(env, m) {
   const sender = m.sender && m.sender.id;
   if (!sender || sender === env.IG_USER_ID || !m.message || m.message.is_echo) return;
-  const payload = m.message.quick_reply && m.message.quick_reply.payload;
-  if (payload !== "FOLLOW_CHECK" && !CHECK_WORDS.test(m.message.text || "")) return;
-  const rule = RULES[0];
+  const payload = (m.message.quick_reply && m.message.quick_reply.payload) || "";
+  if (!payload.startsWith("FOLLOW_CHECK") && !CHECK_WORDS.test(m.message.text || "")) return;
+  const mediaId = payload.split("|")[1] || (await lastOffer(sender));
   const follows = await isFollower(env, sender);
   if (follows === false) {
     await graph(env, `${env.IG_USER_ID}/messages`, {
-      recipient: { id: sender }, message: { text: NOT_YET, quick_replies: FOLLOW_BTN },
+      recipient: { id: sender }, message: { text: NOT_YET, quick_replies: BTN(mediaId) },
     });
     return;
   }
-  // true 이거나 확인 불가(null)면 자료 전송 (API 오류로 사람을 놓치지 않게)
-  await graph(env, `${env.IG_USER_ID}/messages`, { recipient: { id: sender }, message: { text: rule.dm } });
+  // true 이거나 확인 불가(null)면 링크 전송 (API 오류로 사람을 놓치지 않게)
+  const offer = await offerFor(env, mediaId);
+  await graph(env, `${env.IG_USER_ID}/messages`, { recipient: { id: sender }, message: { text: LINK(offer) } });
 }
 
 export default {
