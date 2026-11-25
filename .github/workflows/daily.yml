@@ -37,7 +37,7 @@ jobs:
           GIT_COMMITTER_EMAIL: bot@users.noreply.github.com
         run: |
           if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.publish }}" = "true" ]; then
-            python run_daily.py --accounts work --publish
+            python run_daily.py --accounts work --publish --skip-if-posted-today
           else
             python run_daily.py --accounts work
           fi
