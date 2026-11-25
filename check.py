@@ -18,6 +18,15 @@ if not tok.startswith("IG"):  # 페이스북 로그인 토큰: 연결된 인스�
     for pg in a.json().get("data", []):
         if pg.get("instagram_business_account"):
             cands.append(pg["instagram_business_account"]["id"])
+    # 댓글→DM 웹훅이 오도록 페이지를 앱에 구독 (여러 번 해도 안전)
+    a2 = get("me/accounts", fields="id,name,access_token")
+    for pg in a2.json().get("data", []):
+        ptok = pg.get("access_token") or tok
+        s = requests.post(f"{host}/{pg['id']}/subscribed_apps",
+                          params={"subscribed_fields": "feed,messages", "access_token": ptok}, timeout=30)
+        print(f"페이지 {pg.get('name')} 웹훅 구독 →", s.status_code, s.json())
+        g = requests.get(f"{host}/{pg['id']}/subscribed_apps", params={"access_token": ptok}, timeout=30)
+        print("  현재 구독 →", g.status_code, g.json())
 ok = False
 for cand in dict.fromkeys(cands):
     r1 = get(cand, fields="username,followers_count,media_count")
