@@ -149,7 +149,7 @@ def visual_html(v):
             f'<div class="check"><i>{esc(x.get("icon", "✅"))}</i>{esc(x["text"])}</div>' for x in v["items"]) + "</div>"
     else:
         return ""
-    return f'<div class="vis">{inner}</div>'
+    return f'<div class="vis vis-{t}">{inner}</div>'
 
 
 def emph(title):
@@ -165,7 +165,95 @@ def page(t, inner, idx, total, acc):
 <div class="foot"><span>{esc(acc['handle'])}</span><span>{idx}/{total}</span></div></body></html>"""
 
 
+MAG_CSS = """
+.mag{{position:absolute;inset:0;background:#0B0A10;color:#fff}}
+.mag .brand{{position:absolute;top:34px;left:0;right:0;text-align:center;font-size:24px;letter-spacing:6px;font-weight:800;color:#ffffffb0}}
+/* 표지 */
+.cover-bg{{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 25%,{acc}55,#1B1030 55%,#0B0A10 100%)}}
+.cover-art{{position:absolute;top:120px;left:0;right:0;height:760px;display:flex;align-items:center;justify-content:center}}
+.cover-art .vis{{transform:rotate(-4deg) scale(1.25);filter:drop-shadow(0 40px 60px rgba(0,0,0,.55));margin:0}}
+.cover-fade{{position:absolute;left:0;right:0;bottom:0;height:640px;background:linear-gradient(transparent,#0B0A10 55%)}}
+.cover-txt{{position:absolute;left:70px;right:70px;bottom:90px}}
+.pill{{display:inline-block;border:2px solid #ffffff90;border-radius:999px;padding:8px 22px;font-size:24px;font-weight:700;letter-spacing:1px;color:#ffffffd0}}
+.cover-title{{font-size:92px;font-weight:900;line-height:1.16;letter-spacing:-3px;margin-top:26px}}
+.cover-title em{{font-style:normal;color:{acc}}}
+.cover-sub{{font-size:32px;color:#ffffffa8;margin-top:22px;font-weight:500}}
+.dots{{position:absolute;bottom:40px;left:0;right:0;text-align:center;font-size:22px;color:#ffffff70;letter-spacing:6px}}
+/* 본문 */
+.card{{position:absolute;top:34px;left:34px;right:34px;height:700px;border-radius:40px;background:linear-gradient(160deg,#FBFAFF,#EEEAF8);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;color:#111}}
+.card .vis{{margin:0;transform:scale(1.18)}}
+.card .vis-chat,.card .vis-checks{{transform:none;width:86%}}
+.cover-art .vis-chat,.cover-art .vis-checks{{width:80%;transform:rotate(-4deg)}}
+.cover-art .vis-path{{max-width:900px;transform:rotate(-4deg)}}
+.card .big-keys{{display:flex;gap:22px;align-items:center}}
+.card .big-keys .key{{background:#fff;color:#1F1235;border:3px solid #CFC6E6;border-bottom-width:12px;border-radius:26px;padding:26px 44px;font-size:72px;font-weight:900;
+  font-family:'Consolas','DejaVu Sans Mono',{font}}}
+.card .big-keys .plus{{font-size:56px;color:{acc};font-weight:900}}
+.card .big-icon{{font-size:260px;line-height:1}}
+.card .bubble.ai,.card .path .step{{box-shadow:0 6px 18px rgba(0,0,0,.08)}}
+.card .check{{background:#fff;color:#111;box-shadow:0 6px 18px rgba(0,0,0,.06)}}
+.panel{{position:absolute;left:70px;right:70px;top:780px;bottom:80px}}
+.numc{{width:56px;height:56px;border-radius:50%;background:#ffffff1f;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800}}
+.ph{{font-size:66px;font-weight:900;letter-spacing:-2px;line-height:1.2;margin-top:22px}}
+.pb{{font-size:33px;line-height:1.6;color:#D9D6E3;margin-top:22px;font-weight:500}}
+.pb b{{color:{acc}}}
+.mark{{position:absolute;right:70px;bottom:40px;font-size:22px;font-weight:800;letter-spacing:4px;color:#ffffff80}}
+.pg{{position:absolute;left:70px;bottom:40px;font-size:22px;color:#ffffff60}}
+/* CTA */
+.cta{{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 80px;background:radial-gradient(100% 70% at 50% 30%,{acc}40,#0B0A10 70%)}}
+.cta .t{{font-size:78px;font-weight:900;line-height:1.25;letter-spacing:-2px}}
+.cta .kw{{display:inline-block;margin-top:46px;background:{acc};color:#0B0A10;border-radius:22px;padding:26px 40px;font-size:44px;font-weight:900}}
+.cta .s{{font-size:32px;color:#ffffffb0;margin-top:30px;line-height:1.5}}
+.cta .h{{font-size:40px;font-weight:900;color:{acc};margin-top:60px}}
+"""
+
+
+def mag_page(t, acc, inner):
+    extra = MAG_CSS.format(acc=t["accent"], font=FONT).replace("{{", "{").replace("}}", "}")
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<style>{css(t)}{extra}</style></head><body><div class="mag">{inner}</div></body></html>"""
+
+
+def mag_slides(c, acc):
+    t = acc["theme"]
+    brand = esc(acc.get("brand", acc["name"]))
+    n = len(c["slides"]) + 2
+    out = []
+    cv = c["cover"]
+    art_v = cv.get("visual") or next((s["visual"] for s in c["slides"] if s.get("visual")), None)
+    art = visual_html(art_v) if art_v else f'<div class="big-icon" style="font-size:300px">{esc(cv.get("icon", "⌨️"))}</div>'
+    out.append(mag_page(t, acc, f"""<div class="cover-bg"></div><div class="brand">{brand}</div>
+<div class="cover-art">{art}</div><div class="cover-fade"></div>
+<div class="cover-txt"><span class="pill">{esc(cv.get('kicker',''))}</span>
+<div class="cover-title">{emph(cv['title'])}</div><div class="cover-sub">{esc(cv.get('subtitle',''))}</div></div>
+<div class="dots">● ○ ○ ○ ○</div>"""))
+    for i, s in enumerate(c["slides"], 1):
+        if s.get("visual"):
+            top = visual_html(s["visual"])
+        elif s.get("keys"):
+            top = '<div class="big-keys">' + '<span class="plus">+</span>'.join(
+                f'<span class="key">{esc(k)}</span>' for k in s["keys"]) + "</div>"
+        else:
+            top = f'<div class="big-icon">{esc(s.get("icon", "💡"))}</div>'
+        tip = f'<br><b>TIP</b> {esc(s["tip"])}' if s.get("tip") else ""
+        out.append(mag_page(t, acc, f"""<div class="card">{top}</div>
+<div class="panel"><div class="numc">{i}</div><div class="ph">{esc(s['heading'])}</div>
+<div class="pb">{esc(s['body'])}{tip}</div></div>
+<div class="pg">{i + 1}/{n}</div><div class="mark">{brand}</div>"""))
+    kw = c.get("dm_keyword")
+    kw_html = (f'<div class="kw">댓글에 “{esc(kw)}” 남기기</div><div class="s">{esc(c.get("dm_offer", "자료를 DM으로 보내드려요"))}</div>'
+               if kw else f'<div class="s">{esc(acc["cta"])}</div>')
+    cta_t = esc(c.get("cta_title", "저장해두고\n필요할 때 꺼내 쓰세요"))
+    out.append(mag_page(t, acc, f"""<div class="cta"><div class="t">{cta_t}</div>
+{kw_html}<div class="h">{esc(acc['handle'])}</div></div>"""))
+    return out
+
+
 def slides_html(c, acc):
+    if acc["theme"].get("layout") == "magazine":
+        return mag_slides(c, acc)
     t = acc["theme"]
     n = len(c["slides"]) + 2
     out = []
@@ -205,10 +293,10 @@ def render(json_path, browser):
     files = []
     for i, h in enumerate(slides_html(c, acc), 1):
         pg.set_content(h, wait_until="networkidle")
-        over = pg.evaluate("""() => { const p = document.querySelector('.pad');
-            const kids = [...p.children]; const bottom = Math.max(...kids.map(k => k.getBoundingClientRect().bottom));
-            const right = Math.max(...[...p.querySelectorAll('*')].map(k => k.getBoundingClientRect().right));
-            const r = p.getBoundingClientRect(); return bottom > r.bottom + 2 || right > r.right + 2; }""")
+        over = pg.evaluate("""() => [...document.querySelectorAll('.pad, .panel, .card, .cover-txt, .cover-art')].some(p => {
+            const r = p.getBoundingClientRect();
+            return [...p.querySelectorAll('*')].some(k => { const b = k.getBoundingClientRect();
+                return b.width && (b.bottom > r.bottom + 2 || b.right > r.right + 2 || b.left < r.left - 2 || b.top < r.top - 2); }); })""")
         if over:
             print(f"  ⚠️ {json_path.name} {i}번 슬라이드 내용이 넘침")
         f = out_dir / f"{i:02d}.jpg"

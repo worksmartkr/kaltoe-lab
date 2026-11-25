@@ -9,7 +9,8 @@ accounts:
     audience: "엑셀·문서 작업이 많은 20~30대 직장인"
     tone: "짧고 실용적, 바로 따라 할 수 있는 단계 위주"
     cta: "저장해두고 내일 출근해서 써보세요"
-    theme: { bg: "#1E1033", card: "#2E1A4D", text: "#FAF5FF", sub: "#C4B5FD", accent: "#A78BFA" }
+    brand: "KALTOE LAB"
+    theme: { layout: "magazine", bg: "#1E1033", card: "#2E1A4D", text: "#FAF5FF", sub: "#C4B5FD", accent: "#A78BFA" }
 
   cad:
     handle: "@cad.daily"
