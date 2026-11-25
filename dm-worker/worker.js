@@ -23,7 +23,17 @@ const RULES = [
       "요청하신 '업무용 AI 프롬프트 30'이에요 👇\n" +
       "https://worksmartkr.github.io/kaltoe-lab/prompts/\n\n" +
       "저장해두고 필요할 때 꺼내 쓰세요. 매일 저녁 7시에 칼퇴 팁 올라가요!",
-    replies: ["DM 보내드렸어요! 📩", "DM 확인해주세요 🙌", "DM 보냈어요! 칼퇴하세요 🏃"],
+    // 링크 DM 성공 시 대댓글
+    replies: ["DM으로 보내드렸어요! 📩", "DM으로 보내드렸어요! 확인해주세요 🙌", "DM으로 보내드렸어요! 칼퇴하세요 🏃"],
+    // 미팔로워 대댓글 (팔로우 요청 DM이 나간 경우)
+    followRepliesDm: [
+      "팔로우 해주셔야 자료를 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 DM의 '팔로우 했어요' 버튼을 눌러주세요!",
+      "팔로워분들께만 보내드려요! 팔로우 후 DM에서 '팔로우 했어요' 눌러주시면 바로 보내드릴게요 🙌",
+    ],
+    // 미팔로워 대댓글 (DM도 못 보낸 경우)
+    followReplies: [
+      "팔로우 해주셔야 DM으로 보내드릴 수 있어요 🙏 @worksmart.kr 팔로우 후 '프롬프트' 댓글 다시 달아주세요!",
+    ],
   },
 ];
 const NOT_YET =
@@ -76,26 +86,33 @@ async function isFollower(env, igsid) {
 }
 
 async function handleComment(env, v) {
-  if (!v || !v.id || !v.text) return;
-  if (v.from && v.from.id === env.IG_USER_ID) return; // 내 답글은 무시
+  console.log("COMMENT", JSON.stringify(v));
+  if (!v || !v.id || !v.text) return console.log("skip: 내용 없음");
+  if (v.from && v.from.id === env.IG_USER_ID) return console.log("skip: 내 댓글");
+  if (v.parent_id) return console.log("skip: 대댓글");
   const rule = matchRule(v.text);
-  if (!rule) return;
-  // 1) 비공개 답장(Private Reply, 댓글당 1회): 팔로우 요청 + 확인 버튼
+  if (!rule) return console.log("skip: 키워드 아님");
+  const follows = v.from ? await isFollower(env, v.from.id) : null;
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  if (follows === true) {
+    // 팔로워: 바로 링크 DM → 성공하면 "DM 보내드렸어요" 대댓글
+    const dm = await graph(env, `${env.IG_USER_ID}/messages`, {
+      recipient: { comment_id: v.id }, message: { text: rule.dm },
+    });
+    if (dm.ok) await graph(env, `${v.id}/replies`, { message: pick(rule.replies) });
+    return;
+  }
+  // 미팔로워(false) 또는 확인 불가(null): 팔로우 요청 DM(버튼) + 팔로우 요청 대댓글
   let dm = await graph(env, `${env.IG_USER_ID}/messages`, {
-    recipient: { comment_id: v.id },
-    message: { text: rule.ask, quick_replies: FOLLOW_BTN },
+    recipient: { comment_id: v.id }, message: { text: rule.ask, quick_replies: FOLLOW_BTN },
   });
-  if (!dm.ok) { // 버튼이 거부되면 글로만 안내
+  if (!dm.ok) {
     dm = await graph(env, `${env.IG_USER_ID}/messages`, {
       recipient: { comment_id: v.id },
       message: { text: rule.ask.replace("아래 '팔로우 했어요' 버튼 누르기", "이 메시지에 '팔로우 했어요'라고 답장") },
     });
   }
-  // 2) 공개 답글: 다른 사람들도 댓글 달게 유도
-  if (dm.ok) {
-    const msg = rule.replies[Math.floor(Math.random() * rule.replies.length)];
-    await graph(env, `${v.id}/replies`, { message: msg });
-  }
+  await graph(env, `${v.id}/replies`, { message: pick(dm.ok ? rule.followRepliesDm : rule.followReplies) });
 }
 
 // DM으로 '팔로우 했어요' 버튼/답장이 오면 팔로우 확인 후 자료 전송
@@ -133,6 +150,7 @@ export default {
       return new Response("bad signature", { status: 401 });
     }
     let data = {};
+    console.log("WEBHOOK", body.slice(0, 1500));
     try { data = JSON.parse(body); } catch { return new Response("bad json", { status: 400 }); }
     const jobs = [];
     for (const entry of data.entry || []) {
