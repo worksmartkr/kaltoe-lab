@@ -186,6 +186,7 @@ MAG_CSS = """
 .card .vis-chat,.card .vis-checks{{transform:none;width:86%}}
 .cover-art .vis-chat,.cover-art .vis-checks{{width:80%;transform:rotate(-4deg)}}
 .cover-art .vis-path{{max-width:900px;transform:rotate(-4deg)}}
+.cover-art .vis-beforeafter{{transform:rotate(-4deg) scale(1.05)}}
 .card .big-keys{{display:flex;gap:22px;align-items:center}}
 .card .big-keys .key{{background:#fff;color:#1F1235;border:3px solid #CFC6E6;border-bottom-width:12px;border-radius:26px;padding:26px 44px;font-size:72px;font-weight:900;
   font-family:'Consolas','DejaVu Sans Mono',{font}}}
