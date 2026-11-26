@@ -1,8 +1,8 @@
 name: daily-carousel
 on:
-  # 매일 19:17 KST 자동 실행 (끄려면 아래 두 줄 주석 처리)
+  # 매일 18:45 KST 시작 → 렌더·업로드 후 19시 무렵 게시 (끄려면 아래 두 줄 주석 처리)
   schedule:
-    - cron: "17 10 * * *"
+    - cron: "45 9 * * *"
   workflow_dispatch:
     inputs:
       publish:
